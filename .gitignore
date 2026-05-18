@@ -1,16 +1,4 @@
 .env
-.venv*/
+.venv/
 data/
 checkpoints/
-
-# Temporary files generated during testing/Streamlit
-*temp*.jpg
-prediction_*.jpg
-*.png
-
-.venv312/
-temp.jpg
-batch_temp.jpg
-prediction_*.jpg
-*.png
-__pycache__/
