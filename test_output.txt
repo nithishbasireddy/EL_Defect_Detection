@@ -1,5 +1,0 @@
-﻿004.jpg: 72 cells
-NG101070012271_1_Finger Interruptions.jpg: 72 cells
-NG02.jpg: 1 cells
-NG10.jpg: 1 cells
-NG17.jpg: 1 cells
