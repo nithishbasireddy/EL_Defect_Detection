@@ -41,8 +41,8 @@ def compute_length(skeleton):
 # -----------------------
 # PIXEL to MM
 # -----------------------
-def pixel_to_mm(length_pixels):
-    mm_per_pixel = 156 / 512  
+def pixel_to_mm(length_pixels, cell_size_mm=156.0):
+    mm_per_pixel = cell_size_mm / 512  
     return length_pixels * mm_per_pixel
 
 
@@ -150,7 +150,7 @@ def filter_straight_lines(skeleton, straightness_threshold=0.90):
 # -----------------------
 # FULL PIPELINE
 # -----------------------
-def analyze_crack(mask):
+def analyze_crack(mask, cell_size_mm=156.0):
 
     crack = get_crack_mask(mask)
     crack = clean_crack_mask(crack)
@@ -167,7 +167,7 @@ def analyze_crack(mask):
     if length_px < 5:
         length_px = 0
         
-    length_mm = pixel_to_mm(length_px)
+    length_mm = pixel_to_mm(length_px, cell_size_mm)
 
     # Physical sanity cap: a 156mm cell can't have a crack longer
     # than its diagonal (~220mm). If we see more, it's grid artifacts.
@@ -188,7 +188,7 @@ def analyze_crack(mask):
         
         # Ignore tiny individual noise lines
         if px_len >= 5:
-            mm_len = pixel_to_mm(px_len)
+            mm_len = pixel_to_mm(px_len, cell_size_mm)
             individual_cracks_mm.append(round(mm_len, 2))
             
     # Sort from longest to shortest

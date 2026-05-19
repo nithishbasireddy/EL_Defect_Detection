@@ -45,6 +45,24 @@ detect_finger = st.sidebar.checkbox("Detect Finger Interruption")
 detect_foreign = st.sidebar.checkbox("Detect Foreign Objects")
 
 # -----------------------
+# CELL CALIBRATION
+# -----------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("Cell Calibration")
+CELL_SIZE_PRESETS = {
+    "M2 — 156 mm (Default)": 156.0,
+    "M6 — 166 mm": 166.0,
+    "M10 — 182 mm": 182.0,
+    "G12 — 210 mm": 210.0,
+    "Custom": None,
+}
+cell_format = st.sidebar.selectbox("Cell Format", list(CELL_SIZE_PRESETS.keys()))
+if CELL_SIZE_PRESETS[cell_format] is not None:
+    cell_size_mm = CELL_SIZE_PRESETS[cell_format]
+else:
+    cell_size_mm = st.sidebar.number_input("Custom Cell Size (mm)", min_value=1.0, value=156.0, step=1.0)
+
+# -----------------------
 # AI SMART THRESHOLDS
 # -----------------------
 st.sidebar.markdown("---")
@@ -88,11 +106,7 @@ tab_single, tab_batch = st.tabs(['Single Image Inspection', 'Batch Processing'])
 with tab_single:
     # UPLOAD IMAGE
     # -----------------------
-    col1, col2 = st.columns(2)
-    with col1:
-        uploaded_file = st.file_uploader("Upload EL Image", type=["jpg", "png"])
-    with col2:
-        image_length_mm = st.number_input("Length of Image (mm)", min_value=1.0, value=156.0, step=1.0)
+    uploaded_file = st.file_uploader("Upload EL Image", type=["jpg", "png"])
 
     ref_file = st.file_uploader("Upload Reference (Good Module)", type=["jpg", "png"])
 
@@ -118,7 +132,7 @@ with tab_single:
                 ref_mean = float(np.mean(ref_gray))
 
             # --- Run Pipeline ---
-            pipeline_results = process_image("temp.jpg", model, transform, device)
+            pipeline_results = process_image("temp.jpg", model, transform, device, cell_size_mm)
 
             # --- Run Orchestrator ---
             config = {
@@ -131,6 +145,7 @@ with tab_single:
             # Save for UI rendering outside the button block
             st.session_state["inspection_output"] = inspection
             st.session_state["ref_mode"] = "reference" if ref_file is not None else "model"
+            st.session_state["cell_size_used"] = cell_size_mm
             st.session_state["inspection_run"] = True
 
     # --- Display Results ---
@@ -143,6 +158,10 @@ with tab_single:
             st.info("Using reference-based dark detection")
         else:
             st.warning("Using model-based dark detection")
+
+        # --- Calibration info ---
+        used_size = st.session_state.get("cell_size_used", 156.0)
+        st.info(f"\U0001f4d0 Cell Size: **{used_size:.1f} mm** | Resolution: **{used_size/512:.4f} mm/px**")
 
         st.markdown("---")
 
@@ -250,7 +269,7 @@ with tab_batch:
                         f.write(uploaded_file.read())
                     
                     # Process image
-                    pipeline_results = process_image("batch_temp.jpg", model, transform, device)
+                    pipeline_results = process_image("batch_temp.jpg", model, transform, device, cell_size_mm)
                     inspection = run_inspection(pipeline_results, config, ref_mean=batch_ref_mean)  
                     
                     summary = inspection["summary"]
