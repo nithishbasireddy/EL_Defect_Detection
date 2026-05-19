@@ -44,6 +44,22 @@ max_dark_percent = col2.number_input("Manual  ", 1, 30, max_dark_slider)
 detect_finger = st.sidebar.checkbox("Detect Finger Interruption")
 detect_foreign = st.sidebar.checkbox("Detect Foreign Objects")
 
+# Cell size — physical dimension of one solar cell
+st.sidebar.markdown("---")
+st.sidebar.subheader("Cell Calibration")
+CELL_SIZE_PRESETS = {
+    "M2 — 156 mm (Default)": 156.0,
+    "M6 — 166 mm": 166.0,
+    "M10 — 182 mm": 182.0,
+    "G12 — 210 mm": 210.0,
+    "Custom": None,
+}
+cell_format = st.sidebar.selectbox("Cell Format", list(CELL_SIZE_PRESETS.keys()))
+if CELL_SIZE_PRESETS[cell_format] is not None:
+    cell_size_mm = CELL_SIZE_PRESETS[cell_format]
+else:
+    cell_size_mm = st.sidebar.number_input("Custom Cell Size (mm)", min_value=1.0, value=156.0, step=1.0)
+
 # -----------------------
 # AI SMART THRESHOLDS
 # -----------------------
@@ -89,6 +105,7 @@ with tab_single:
     # UPLOAD IMAGE
     # -----------------------
     uploaded_file = st.file_uploader("Upload EL Image", type=["jpg", "png"])
+
     ref_file = st.file_uploader("Upload Reference (Good Module)", type=["jpg", "png"])
 
     if uploaded_file:
@@ -113,7 +130,7 @@ with tab_single:
                 ref_mean = float(np.mean(ref_gray))
 
             # --- Run Pipeline ---
-            pipeline_results = process_image("temp.jpg", model, transform, device)
+            pipeline_results = process_image("temp.jpg", model, transform, device, cell_size_mm)
 
             # --- Run Orchestrator ---
             config = {
@@ -126,6 +143,7 @@ with tab_single:
             # Save for UI rendering outside the button block
             st.session_state["inspection_output"] = inspection
             st.session_state["ref_mode"] = "reference" if ref_file is not None else "model"
+            st.session_state["cell_size_used"] = cell_size_mm
             st.session_state["inspection_run"] = True
 
     # --- Display Results ---
@@ -138,6 +156,11 @@ with tab_single:
             st.info("Using reference-based dark detection")
         else:
             st.warning("Using model-based dark detection")
+
+        # --- Calibration info ---
+        used_size = st.session_state.get("cell_size_used", 156.0)
+        mm_per_px = used_size / 512
+        st.info(f"📐 Cell Size: **{used_size:.1f} mm** &nbsp;|&nbsp; Resolution: **{mm_per_px:.4f} mm/px**")
 
         st.markdown("---")
 
@@ -245,7 +268,7 @@ with tab_batch:
                         f.write(uploaded_file.read())
                     
                     # Process image
-                    pipeline_results = process_image("batch_temp.jpg", model, transform, device)
+                    pipeline_results = process_image("batch_temp.jpg", model, transform, device, cell_size_mm)
                     inspection = run_inspection(pipeline_results, config, ref_mean=batch_ref_mean)  
                     
                     summary = inspection["summary"]
