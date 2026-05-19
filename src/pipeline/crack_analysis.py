@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import math
 from skimage.morphology import skeletonize
 
 
@@ -42,18 +41,8 @@ def compute_length(skeleton):
 # -----------------------
 # PIXEL to MM
 # -----------------------
-def pixel_to_mm(length_pixels: float, cell_size_mm: float = 156.0, pixel_dim: int = 512) -> float:
-    """
-    Converts pixel lengths to physical millimeters.
-
-    Args:
-        length_pixels: Skeleton length in pixels.
-        cell_size_mm:  Physical cell dimension in mm (M2=156, M6=166, M10=182, G12=210).
-        pixel_dim:     Resolution of the cell mask in pixels (inferred from mask shape).
-    """
-    if pixel_dim <= 0:
-        return 0.0
-    mm_per_pixel = cell_size_mm / pixel_dim  
+def pixel_to_mm(length_pixels):
+    mm_per_pixel = 156 / 512  
     return length_pixels * mm_per_pixel
 
 
@@ -161,17 +150,8 @@ def filter_straight_lines(skeleton, straightness_threshold=0.90):
 # -----------------------
 # FULL PIPELINE
 # -----------------------
-def analyze_crack(mask: np.ndarray, cell_size_mm: float = 156.0) -> dict:
-    """
-    Full crack analysis pipeline for a single solar cell mask.
+def analyze_crack(mask):
 
-    Extracts crack pixels, skeletonizes, filters grid-line false positives,
-    and converts to physical millimeters using the cell's known dimensions.
-
-    Args:
-        mask:         Segmentation mask (H x W) with class labels.
-        cell_size_mm: Physical cell dimension in mm. Defaults to 156 (M2 wafer).
-    """
     crack = get_crack_mask(mask)
     crack = clean_crack_mask(crack)
 
@@ -187,16 +167,12 @@ def analyze_crack(mask: np.ndarray, cell_size_mm: float = 156.0) -> dict:
     if length_px < 5:
         length_px = 0
         
-    # Dynamically infer pixel dimension from the input mask (handles varying resolutions)
-    pixel_dim = max(mask.shape)
-    length_mm = pixel_to_mm(length_px, cell_size_mm, pixel_dim)
+    length_mm = pixel_to_mm(length_px)
 
-    # Physical sanity cap: A real crack cannot exceed the cell's diagonal.
-    # Diagonal = sqrt(2) * cell_size. We add a 20% margin for jagged/branching paths.
-    max_possible_crack_mm = (math.sqrt(2) * cell_size_mm) * 1.2
-    
-    if length_mm > max_possible_crack_mm:
-        # Exceeds theoretical max → almost certainly a grid-line artifact
+    # Physical sanity cap: a 156mm cell can't have a crack longer
+    # than its diagonal (~220mm). If we see more, it's grid artifacts.
+    MAX_POSSIBLE_CRACK_MM = 22000.0
+    if length_mm > MAX_POSSIBLE_CRACK_MM:
         length_mm = 0.0
         length_px = 0
 
@@ -212,7 +188,7 @@ def analyze_crack(mask: np.ndarray, cell_size_mm: float = 156.0) -> dict:
         
         # Ignore tiny individual noise lines
         if px_len >= 5:
-            mm_len = pixel_to_mm(px_len, cell_size_mm, pixel_dim)
+            mm_len = pixel_to_mm(px_len)
             individual_cracks_mm.append(round(mm_len, 2))
             
     # Sort from longest to shortest
